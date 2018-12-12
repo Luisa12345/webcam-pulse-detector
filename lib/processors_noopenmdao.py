@@ -37,6 +37,8 @@ class findFaceGetPulse(object):
         self.t0 = time.time()
         self.bpms = []
         self.bpm = 0
+        self.alpha = 0
+        self.beta = 0
         dpath = resource_path("haarcascade_frontalface_alt.xml")
         if not os.path.exists(dpath):
             print("Cascade file not present!")
@@ -210,6 +212,9 @@ class findFaceGetPulse(object):
             t = 0.9 * t + 0.1
             alpha = t
             beta = 1 - t
+
+            self.alpha = alpha
+            self.beta = beta
 
             self.bpm = self.freqs[idx2]
             self.idx += 1

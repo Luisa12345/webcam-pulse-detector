@@ -1,7 +1,8 @@
 from lib.device import Camera
 from lib.processors_noopenmdao import findFaceGetPulse
 from lib.interface import plotXY, imshow, waitKey, destroyWindow
-from cv2 import moveWindow
+
+import cv2
 import argparse
 import numpy as np
 import datetime
@@ -75,12 +76,16 @@ class getPulseApp(object):
         self.bpm_plot = False
         self.plot_title = "Data display - raw signal (top) and PSD (bottom)"
 
+        # Init parameters for the art windows
+        self.show_art_window = False
+
         # Maps keystrokes to specified methods
         #(A GUI window must have focus for these to work)
         self.key_controls = {"s": self.toggle_search,
                              "d": self.toggle_display_plot,
                              "c": self.toggle_cam,
-                             "f": self.write_csv}
+                             "f": self.write_csv,
+                             "q": self.add_art_window}
 
     def toggle_cam(self):
         if len(self.cameras) > 1:
@@ -89,6 +94,9 @@ class getPulseApp(object):
             destroyWindow(self.plot_title)
             self.selected_cam += 1
             self.selected_cam = self.selected_cam % len(self.cameras)
+
+    def add_art_window(self):
+        self.show_art_window = True
 
     def write_csv(self):
         """
@@ -125,7 +133,7 @@ class getPulseApp(object):
                 self.toggle_search()
             self.bpm_plot = True
             self.make_bpm_plot()
-            moveWindow(self.plot_title, self.w, 0)
+            cv2.moveWindow(self.plot_title, self.w, 0)
 
     def make_bpm_plot(self):
         """
@@ -142,6 +150,48 @@ class getPulseApp(object):
                skip=[3, 3],
                name=self.plot_title,
                bg=self.processor.slices[0])
+
+    def make_art_window(self):
+        # load the image
+        image = cv2.imread("background.png")
+        alpha = self.processor.alpha
+        beta = self.processor.beta
+
+        # !!!! I copied it from this tutorial where basically everthying with opencv is explained for real:  !!!
+        #https://www.pyimagesearch.com/2016/03/07/transparent-overlays-with-opencv/
+
+
+        # create two copies of the original image -- one for
+        # the overlay and one for the final output image
+        overlay1 = image.copy()
+        overlay2 = image.copy()
+        output = image.copy()
+
+        # draw a red rectangle in the image
+        # along with the text "PyImageSearch" at the top-left
+        # corner for alpha!
+        cv2.rectangle(overlay1, (0, 0), (200,200),
+                      (0, 0, 255), -1)
+        cv2.putText(overlay1, "alpha={}".format(alpha),
+                    (480, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 3)
+        # apply the overlay
+        cv2.addWeighted(overlay1, alpha, output, 1 - alpha,
+                        0, output)
+
+        # draw a red rectangle in the image
+        # along with the text "PyImageSearch" at the top-right
+        # corner for for beta!
+        cv2.rectangle(overlay2, (300, 0), (450, 450),
+                      (0, 0, 255), -1)
+        cv2.putText(overlay2, "beta={}".format(alpha),
+                    (480, 60), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 1)
+        # apply the overlay
+        cv2.addWeighted(overlay2, beta, output, 1 - beta,
+                        0, output)
+        # show the output image
+        print("alpha={}, beta={}".format(alpha, 1 - alpha))
+        cv2.imshow("Output", output)
+        #cv2.waitKey(0)
 
     def key_handler(self):
         """
@@ -188,6 +238,9 @@ class getPulseApp(object):
         # create and/or update the raw data display if needed
         if self.bpm_plot:
             self.make_bpm_plot()
+
+        if self.show_art_window:
+            self.make_art_window()
 
         if self.send_serial:
             self.serial.write(str(self.processor.bpm) + "\r\n")
